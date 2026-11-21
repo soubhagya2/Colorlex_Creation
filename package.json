@@ -1,0 +1,15 @@
+{
+  "name": "colorlex-creation",
+  "version": "1.0.0",
+  "description": "ColorLex Creation - Premium Full-Stack Printing & Packaging Platform",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix server-side install && npm --prefix client-side install",
+    "server": "npm --prefix server-side start",
+    "server:dev": "npm --prefix server-side dev",
+    "server:seed": "npm --prefix server-side seed",
+    "client": "npm --prefix client-side dev",
+    "build:client": "npm --prefix client-side build",
+    "dev": "npm --prefix server-side dev"
+  }
+}
