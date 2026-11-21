@@ -319,7 +319,8 @@ export default function Navbar() {
                 </button>
                 <input
                   id="header-search"
-                  type="search"
+                  type="text"
+                  enterKeyHint="search"
                   value={searchQuery}
                   onFocus={() => setShowDropdown(true)}
                   onChange={(e) => {
@@ -331,7 +332,7 @@ export default function Navbar() {
                   }}
                   placeholder="Search products…"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-sm text-slate-700 placeholder-slate-400 outline-none transition-all focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-sm text-slate-700 placeholder-slate-400 outline-none transition-all focus:border-purple-400 focus:ring-2 focus:ring-purple-400 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
                 />
                 {searchQuery && (
                   <button
@@ -432,7 +433,8 @@ export default function Navbar() {
                 </button>
                 <input
                   id="mobile-header-search"
-                  type="search"
+                  type="text"
+                  enterKeyHint="search"
                   value={searchQuery}
                   onFocus={() => setShowDropdown(true)}
                   onChange={(e) => {
@@ -444,7 +446,7 @@ export default function Navbar() {
                   }}
                   placeholder="Search products…"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-sm text-slate-700 placeholder-slate-400 outline-none transition-all focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-sm text-slate-700 placeholder-slate-400 outline-none transition-all focus:border-purple-400 focus:ring-2 focus:ring-purple-400 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
                 />
                 {searchQuery && (
                   <button
