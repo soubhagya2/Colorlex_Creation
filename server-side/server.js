@@ -76,9 +76,19 @@ app.use('/api/upload', uploadRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const dbStatusMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+
   res.json({
     status: 'online',
     app: 'ColorLex Creation API',
+    database: dbStatusMap[dbState] || 'unknown',
+    uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
 });
@@ -87,19 +97,28 @@ app.get('/', (req, res) => {
   res.send('ColorLex Creation Backend REST API is running.');
 });
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/printing';
+// Start listening immediately so Render detects port binding without delay
+app.listen(PORT, () => {
+  console.log(`🚀 ColorLex Backend Server running on port ${PORT}`);
+});
 
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log('✅ Connected to MongoDB database successfully');
-    app.listen(PORT, () => {
-      console.log(`🚀 ColorLex Backend Server running on http://localhost:${PORT}`);
+// Connect to MongoDB Atlas asynchronously
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+  console.warn('⚠️ Warning: MONGO_URI environment variable is not defined.');
+  console.warn('   Please set MONGO_URI in your Render Dashboard under Environment.');
+} else {
+  console.log('📡 Connecting to MongoDB database...');
+  mongoose
+    .connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 8000
+    })
+    .then(() => {
+      console.log('✅ Connected to MongoDB database successfully');
+    })
+    .catch(err => {
+      console.error('❌ MongoDB Connection Error:', err.message);
+      console.error('👉 Tip: Check your Render MONGO_URI environment variable and ensure MongoDB Atlas Network Access allows 0.0.0.0/0');
     });
-  })
-  .catch(err => {
-    console.warn('⚠️ Could not connect to local MongoDB. Running API server in standalone mode:', err.message);
-    app.listen(PORT, () => {
-      console.log(`🚀 ColorLex Backend Server running on http://localhost:${PORT} (Standalone API Mode)`);
-    });
-  });
+}

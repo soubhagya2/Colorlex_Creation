@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: colorlex-creation-backend
+    env: node
+    plan: free
+    rootDir: server-side
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        value: https://colorlex-creation.vercel.app
