@@ -176,8 +176,9 @@ export default function AdminProducts() {
   };
 
   const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.sku || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.category?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

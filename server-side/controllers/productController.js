@@ -2,25 +2,38 @@ import Product from '../models/Product.js';
 import Category from '../models/Category.js';
 import { calculateProductPrice } from '../utils/priceCalculator.js';
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export const getProducts = async (req, res) => {
   try {
     const { category, search, featured, bestSeller, sort } = req.query;
     let query = {};
 
     if (category) {
-      const catDoc = await Category.findOne({
-        $or: [{ _id: category.match(/^[0-9a-fA-F]{24}$/) ? category : null }, { slug: category }]
-      });
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(category);
+      const catDoc = await Category.findOne(
+        isObjectId ? { $or: [{ _id: category }, { slug: category }] } : { slug: category }
+      );
       if (catDoc) {
         query.category = catDoc._id;
       }
     }
 
-    if (search) {
+    if (search && search.trim()) {
+      const sanitized = escapeRegex(search.trim());
+      const matchingCats = await Category.find({
+        $or: [
+          { name: { $regex: sanitized, $options: 'i' } },
+          { slug: { $regex: sanitized, $options: 'i' } }
+        ]
+      }).select('_id');
+      const catIds = matchingCats.map((c) => c._id);
+
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } }
+        { name: { $regex: sanitized, $options: 'i' } },
+        { description: { $regex: sanitized, $options: 'i' } },
+        { sku: { $regex: sanitized, $options: 'i' } },
+        ...(catIds.length > 0 ? [{ category: { $in: catIds } }] : [])
       ];
     }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Printer,
@@ -8,9 +8,11 @@ import {
   Shield,
   Search,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../services/api';
 
 const ANNOUNCEMENTS = [
   '🎉 Bulk Printing Special — Get 15% OFF with code COLORLEX15',
@@ -93,6 +95,11 @@ function NavLink({ to, label, currentPath }) {
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [liveResults, setLiveResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const desktopSearchRef = useRef(null);
+  const mobileSearchRef = useRef(null);
 
   const { cartItems } = useCart();
   const { user, logout, isAdmin } = useAuth();
@@ -104,23 +111,144 @@ export default function Navbar() {
   const cartAriaLabel = `Shopping cart, ${totalCartCount} item${totalCartCount !== 1 ? 's' : ''}`;
 
   const handleSearch = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const q = searchQuery.trim();
-    if (!q) return;
+    setShowDropdown(false);
+    if (!q) {
+      navigate('/catalog');
+      return;
+    }
     navigate(`/catalog?search=${encodeURIComponent(q)}`);
-    setSearchQuery('');
+    setMobileOpen(false);
   };
+
+  const handleSelectProduct = (slug) => {
+    navigate(`/product/${slug}`);
+    setShowDropdown(false);
+    setSearchQuery('');
+    setMobileOpen(false);
+  };
+
+  /* Debounced live search */
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setLiveResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    let active = true;
+    setSearchLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiFetch(`/products?search=${encodeURIComponent(q)}`);
+        if (active && res?.success) {
+          setLiveResults(res.data.slice(0, 5));
+        }
+      } catch (err) {
+        if (active) setLiveResults([]);
+      } finally {
+        if (active) setSearchLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
+
+  /* Close dropdown when clicking outside */
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        desktopSearchRef.current &&
+        !desktopSearchRef.current.contains(e.target) &&
+        mobileSearchRef.current &&
+        !mobileSearchRef.current.contains(e.target)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   /** Close drawer on route change */
   useEffect(() => {
     setMobileOpen(false);
-  }, [location.pathname]);
+    setShowDropdown(false);
+  }, [location.pathname, location.search]);
 
   /** Lock body scroll when drawer is open */
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
+
+  const renderSearchDropdown = () => {
+    if (!showDropdown || searchQuery.trim().length < 2) return null;
+
+    return (
+      <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md">
+        {searchLoading ? (
+          <div className="flex items-center justify-center gap-2 py-4 text-xs font-semibold text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+            <span>Searching products…</span>
+          </div>
+        ) : liveResults.length > 0 ? (
+          <div className="space-y-1">
+            <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Products ({liveResults.length})
+            </p>
+            {liveResults.map((prod) => (
+              <button
+                key={prod._id}
+                type="button"
+                onClick={() => handleSelectProduct(prod.slug)}
+                className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-slate-800"
+              >
+                <img
+                  src={prod.images?.[0] || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=100&q=80'}
+                  alt={prod.name}
+                  className="h-10 w-10 shrink-0 rounded-lg bg-slate-950 object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold text-white hover:text-purple-300">
+                    {prod.name}
+                  </p>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                    <span className="truncate font-medium text-purple-400">
+                      {prod.category?.name || 'Printing'}
+                    </span>
+                    <span>•</span>
+                    <span>From ₹{prod.basePrice}</span>
+                  </div>
+                </div>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="mt-1 flex w-full items-center justify-between rounded-xl bg-purple-600/20 px-3 py-2 text-xs font-bold text-purple-300 transition-colors hover:bg-purple-600/30 hover:text-white"
+            >
+              <span>See all results for &ldquo;{searchQuery.trim()}&rdquo;</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="py-4 text-center text-xs text-slate-400">
+            <p className="font-semibold text-slate-300">No products found</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">Press Enter to view catalog</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -174,10 +302,11 @@ export default function Navbar() {
 
             {/* Desktop inline search */}
             <form
+              ref={desktopSearchRef}
               role="search"
               aria-label="Search products"
               onSubmit={handleSearch}
-              className="hidden flex-1 items-center lg:flex lg:max-w-xs lg:mx-6"
+              className="relative hidden flex-1 items-center lg:flex lg:max-w-xs lg:mx-6"
             >
               <label htmlFor="header-search" className="sr-only">Search products</label>
               <div className="relative flex-1">
@@ -192,11 +321,33 @@ export default function Navbar() {
                   id="header-search"
                   type="search"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowDropdown(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowDropdown(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setShowDropdown(false);
+                  }}
                   placeholder="Search products…"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 outline-none transition-all focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-sm text-slate-700 placeholder-slate-400 outline-none transition-all focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setLiveResults([]);
+                      setShowDropdown(false);
+                    }}
+                    aria-label="Clear search"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {renderSearchDropdown()}
               </div>
             </form>
 
@@ -265,6 +416,7 @@ export default function Navbar() {
           {/* ── Row 2: Mobile search bar (below logo row, hidden on desktop) ── */}
           <div className="border-t border-slate-100 px-3 py-2 sm:px-6 lg:hidden">
             <form
+              ref={mobileSearchRef}
               role="search"
               aria-label="Search products"
               onSubmit={handleSearch}
@@ -282,11 +434,33 @@ export default function Navbar() {
                   id="mobile-header-search"
                   type="search"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowDropdown(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowDropdown(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setShowDropdown(false);
+                  }}
                   placeholder="Search products…"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 outline-none transition-all focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-sm text-slate-700 placeholder-slate-400 outline-none transition-all focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setLiveResults([]);
+                      setShowDropdown(false);
+                    }}
+                    aria-label="Clear search"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {renderSearchDropdown()}
               </div>
             </form>
           </div>

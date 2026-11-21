@@ -54,9 +54,15 @@ export default function Catalog() {
   const [loading, setLoading] = useState(true);
 
   const selectedCategory = searchParams.get('category') || '';
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('');
-  const [onlyBestSellers, setOnlyBestSellers] = useState(false);
+  const urlSearch = searchParams.get('search') || '';
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || '');
+  const [onlyBestSellers, setOnlyBestSellers] = useState(searchParams.get('bestSeller') === 'true');
+
+  /* Keep searchTerm in sync with URL query param (e.g. from navbar navigation or browser history) */
+  useEffect(() => {
+    setSearchTerm(urlSearch);
+  }, [urlSearch]);
 
   /* Categories: load once */
   useEffect(() => {
@@ -81,6 +87,7 @@ export default function Catalog() {
       try {
         const params = new URLSearchParams();
         if (selectedCategory) params.set('category', selectedCategory);
+        if (urlSearch) params.set('search', urlSearch);
         if (sortBy) params.set('sort', sortBy);
         if (onlyBestSellers) params.set('bestSeller', 'true');
         const qs = params.toString();
@@ -98,10 +105,27 @@ export default function Catalog() {
     return () => {
       ignore = true;
     };
-  }, [selectedCategory, sortBy, onlyBestSellers]);
+  }, [selectedCategory, urlSearch, sortBy, onlyBestSellers]);
 
   const handleCategorySelect = (slug) => {
-    setSearchParams(slug ? { category: slug } : {});
+    const nextParams = new URLSearchParams(searchParams);
+    if (slug) {
+      nextParams.set('category', slug);
+    } else {
+      nextParams.delete('category');
+    }
+    setSearchParams(nextParams);
+  };
+
+  const handleSearchChange = (val) => {
+    setSearchTerm(val);
+    const nextParams = new URLSearchParams(searchParams);
+    if (val.trim()) {
+      nextParams.set('search', val);
+    } else {
+      nextParams.delete('search');
+    }
+    setSearchParams(nextParams, { replace: true });
   };
 
   const clearAllFilters = () => {
@@ -114,11 +138,21 @@ export default function Catalog() {
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return products;
-    return products.filter(
-      (p) =>
-        p.name?.toLowerCase().includes(term) ||
-        p.description?.toLowerCase().includes(term)
-    );
+    return products.filter((p) => {
+      const nameMatch = p.name?.toLowerCase().includes(term);
+      const descMatch = p.description?.toLowerCase().includes(term);
+      const catMatch = (typeof p.category === 'object' ? p.category?.name : '')?.toLowerCase().includes(term);
+      const skuMatch = p.sku?.toLowerCase().includes(term);
+      const specMatch = p.specifications?.some(
+        (s) => s.value?.toLowerCase().includes(term) || s.key?.toLowerCase().includes(term)
+      );
+      const variantMatch =
+        p.variants?.materials?.some((m) => m.name?.toLowerCase().includes(term)) ||
+        p.variants?.sizes?.some((s) => s.name?.toLowerCase().includes(term)) ||
+        p.variants?.finishes?.some((f) => f.name?.toLowerCase().includes(term));
+
+      return nameMatch || descMatch || catMatch || skuMatch || specMatch || variantMatch;
+    });
   }, [products, searchTerm]);
 
   const selectedCategoryName = categories.find((c) => c.slug === selectedCategory)?.name || '';
@@ -195,14 +229,14 @@ export default function Catalog() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search services, products..."
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search services, products, materials..."
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-9 text-sm text-slate-200 placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
               {searchTerm && (
                 <button
                   type="button"
-                  onClick={() => setSearchTerm('')}
+                  onClick={() => handleSearchChange('')}
                   aria-label="Clear search"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
                 >
@@ -308,16 +342,41 @@ export default function Catalog() {
                 </div>
               ))
             ) : filteredProducts.length === 0 ? (
-              <div className="col-span-full space-y-3 py-16 text-center text-slate-400 sm:py-20">
-                <Printer className="mx-auto h-10 w-10 text-slate-600" />
-                <p className="text-sm font-semibold">No products found</p>
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="text-xs text-purple-400 underline hover:text-purple-300"
-                >
-                  Clear filters
-                </button>
+              <div className="col-span-full space-y-4 py-16 text-center text-slate-400 sm:py-20">
+                <Printer className="mx-auto h-12 w-12 text-slate-600" />
+                <div className="space-y-1">
+                  <p className="text-base font-bold text-slate-200">No products found</p>
+                  <p className="text-xs text-slate-400">
+                    {searchTerm ? (
+                      <>
+                        No items matching &ldquo;
+                        <span className="font-semibold text-purple-300">{searchTerm}</span>
+                        &rdquo;
+                        {selectedCategoryName ? ` in "${selectedCategoryName}"` : ''}.
+                      </>
+                    ) : (
+                      'No products available in this selection.'
+                    )}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                  {selectedCategory && (
+                    <button
+                      type="button"
+                      onClick={() => handleCategorySelect('')}
+                      className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3.5 py-1.5 text-xs font-semibold text-purple-300 hover:bg-purple-500/20"
+                    >
+                      Search across all categories
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white"
+                  >
+                    Reset all filters
+                  </button>
+                </div>
               </div>
             ) : (
               filteredProducts.map((prod) => {
