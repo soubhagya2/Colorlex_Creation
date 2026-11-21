@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileCheck, FileText, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { apiFetch } from '../services/api';
+import { apiFetch, API_BASE_URL } from '../services/api';
 
 const PIPELINE_STEPS = ['Pending', 'Design Review', 'Printing', 'Shipped', 'Delivered'];
 
@@ -94,7 +94,7 @@ export default function Account() {
                 <div className="flex items-center space-x-3">
                   <span className="text-sm font-extrabold text-white">₹{ord.finalAmount?.toFixed(2)}</span>
                   <button
-                    onClick={() => window.open(`/api/orders/${ord._id}/invoice`, '_blank')}
+                    onClick={() => window.open(`${API_BASE_URL}/orders/${ord._id}/invoice`, '_blank')}
                     className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
                     title="View / Print PDF Invoice"
                   >

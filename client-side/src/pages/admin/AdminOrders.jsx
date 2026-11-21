@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Eye, FileText, Truck, X } from 'lucide-react';
-import { apiFetch } from '../../services/api';
+import { apiFetch, API_BASE_URL } from '../../services/api';
 
 const STATUS_PIPELINE = ['Pending', 'Design Review', 'Printing', 'Shipped', 'Delivered', 'Cancelled'];
 
@@ -67,7 +67,7 @@ export default function AdminOrders() {
   };
 
   const openInvoice = (orderId) => {
-    window.open(`/api/orders/${orderId}/invoice`, '_blank');
+    window.open(`${API_BASE_URL}/orders/${orderId}/invoice`, '_blank');
   };
 
   const filteredOrders = orders.filter(o =>

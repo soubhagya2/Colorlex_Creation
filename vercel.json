@@ -1,0 +1,19 @@
+{
+  "framework": "vite",
+  "buildCommand": "npm run build:client",
+  "outputDirectory": "client-side/dist",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://colorlex-creation.onrender.com/api/$1"
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": "https://colorlex-creation.onrender.com/uploads/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

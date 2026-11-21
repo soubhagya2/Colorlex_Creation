@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, FileSpreadsheet } from 'lucide-react';
-import { apiFetch } from '../../services/api';
+import { apiFetch, API_BASE_URL } from '../../services/api';
 
 export default function AdminReports() {
   const [data, setData] = useState(null);
@@ -21,7 +21,7 @@ export default function AdminReports() {
   }, []);
 
   const handleExportCsv = () => {
-    window.open('/api/analytics/export-csv', '_blank');
+    window.open(`${API_BASE_URL}/analytics/export-csv`, '_blank');
   };
 
   return (
